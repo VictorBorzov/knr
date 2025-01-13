@@ -260,8 +260,6 @@ char *read_token(int lim) {
 	return strdup(token);
 }
 
-
-
 char buffer;
 char bset = 0; /* buffer set flag */
 

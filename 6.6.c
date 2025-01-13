@@ -36,21 +36,16 @@ int main(void) {
 struct tnode *addtree(struct tnode *p, char *w) {
 	int cond;
 
-	/* printf("DEBUG: adding %s to the root %s\n", w, (p == NULL) ? "NULL" : p->word); */
 	if (p == NULL) { /* a new word arrived, make a new node */
-		/* printf("DEBUG: setting p\n"); */
 		p = talloc();
 		p->word = strdup(w);
 		p->count = 1;
 		p->left = p->right = NULL;
 	} else if ((cond=strcmp(w, p->word)) == 0) {
 		p->count++; /* repeated word */
-		/* printf("DEBUG: incrementing p\n"); */
 	} else if (cond < 0) { /* less than into left subtree */
-		/* printf("DEBUG: %s is less than %s moving to the left subtree\n", w, p->word); */
 		p->left = addtree(p->left, w);
 	} else { /* greater than into right subtree */
-		/* printf("DEBUG: %s is greater than %s moving to the right subtree\n", w, p->word); */
 		p->right = addtree(p->right, w);
 	}
 
@@ -59,16 +54,9 @@ struct tnode *addtree(struct tnode *p, char *w) {
 
 /* treeprint: in-order print of tree p */
 void treeprint(struct tnode *p) {
-	/* printf("DEBUG: treeprint: node=%s,left=%s,right=%s\n", */
-	/* 	(p == NULL) ? "NULL" : p->word, */
-	/* 	(p == NULL || p->left == NULL)  ? "NULL" : p->left->word, */
-	/* 	(p == NULL || p->right == NULL)  ? "NULL" : p->right->word); */
 	if (p != NULL) {
-		/* printf("DEBUG: printing left subtree (%s)\n", p->left ? p->left->word : "NULL"); */
 		treeprint(p->left);
-		/* printf("DEBUG: printing node\n"); */
 		printf("%4d %s\n", p->count, p->word);
-		/* printf("DEBUG: printing right subtree (%s)\n", p->right ? p->right->word : "NULL"); */
 		treeprint(p->right);
 	}
 }
