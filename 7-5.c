@@ -1,7 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <math.h>
-#include <errno.h>
+#include <ctype.h>
 
 #define OPLEN 16
 #define FMTLEN 1024
@@ -11,84 +12,81 @@ void push(double);
 double pop(void);
 void init_stack(void);
 void free_stack(void);
+void print_stack(void);
 
-int calc(double n1, double n2, double *res, char c);
+char *getoken(void);
 
 int main(void) {
-	double n1, n2, res;
-	char op, line[MAXLEN];
-
-	n = scanf("%5s%c%5s", s1, &c, s2);
-	if (c == '\n')
-		printf("n=%d, read %s and \\n, the rest is %s(%d)\n", n, s1, s2, strlen(s2));
-	else
-		printf("n=%d, read %s and %c, the rest is %s(%d)\n", n, s1, c, s2, strlen(s2));
-	return 0;
-
-
-	sprintf(fmt, "%%lf %%lf %%%ds", OPLEN);
-	puts(fmt);
+	int res;
+	double n1, n2;
+	char c, *token;
 
 	init_stack();
-	while (fgets(line, MAXLEN, stdin) != NULL) {
-		if (sscanf(line, "%lf %lf %c", &n1, &n2, &op) == 3) {
-			/* calc, print/push result to stack */
-		} else if (sscanf(line, "%lf %c", &n2, &op) == 2) {
-			if (isnan(n1 = pop())) {
-				printf("ERROR: invalid stack operation\n");
-				continue;
+	res = 0;
+	while ((token=getoken()) != NULL) {
+		if (sscanf(token, "%lf", &n1)) {
+			push(n1);
+		} else if (sscanf(token, "%c", &c)) {
+			n2 = pop();
+			n1 = pop();
+			switch (c) {
+			case '+':
+				n1 += n2;
+				break;
+			case '-':
+				n1 -= n2;
+				break;
+			case '*':
+				n1 *= n2;
+				break;
+			case '/':
+				n1 /= n2;
+				break;
+			default:
+				printf("ERROR: unknown operation '%c'\n", c);
+				n1 = 0;
+				return 1;
 			}
-			/* pop n1 from the stack, calc and print/push res */
-		} else if (sscanf(line, "%c", &op) == 1) {
-			/* pop n1, n2 from the stack and calc */
-			if (isnan(n1 = pop())) {
-				printf("ERROR: invalid stack operation\n");
-				continue;
-			}
-			if (isnan(n2 = pop())) {
-				printf("ERROR: invalid stack operation\n");
-				continue;
-			}
+			printf("%g\n", n1);
+			push(n1);
 		} else {
-			/* error line */
-			printf("ERROR: wrong format\n");
-			continue;
+			printf("ERROR: this error should never happen\n");
 		}
-		/* */
+		free(token);
 	}
+	free(token);
 
 	free_stack();
 	return 0;
 }
 
-int calc(double n1, double n2, double *res, char c) {
-	switch (c) {
-	case '+':
-		*res = n1 + n2;
-		break;
-	case '-':
-		*res = n1 - n2;
-		break;
-	case '*':
-		*res = n1 * n2;
-		break;
-	case '/':
-		*res = n1 / n2;
-		break;
-	default:
-		printf("ERROR: unknown operation '%c'\n", c);
-		return 1;
+#define TOKENLEN 1024
+/* getoken: returns next non-whitespace seq of chars or NULL */
+char *getoken(void) {
+	char c, token[TOKENLEN];
+	unsigned n;
+
+        while (isspace(c=getchar())); /* skip whitespaces */
+	if (c == EOF)
+		return NULL;
+
+	for (n = 0; n < TOKENLEN-1 && c != EOF && !isspace(c); ++n,c=getchar()) {
+		token[n] = c;
 	}
-	return 0;
+	token[n] = '\0';
+	if (n == TOKENLEN-1)
+		printf("WARN: token is too long!\n");
+
+	return strdup(token);
 }
 
 double *stack;
-int stacksize = 1024;
+int stacksize = 16;
 int pos = 0; /* next free position in stack */
 
 double pop(void) {
 	if (pos > 0) {
-		return stack[pos--];
+		return stack[--pos];
 	} else {
 		printf("ERROR: stack is empty!\n");
 		return NAN;
@@ -117,4 +115,3 @@ void init_stack(void) {
 void free_stack(void) {
 	free(stack);
 }
-
