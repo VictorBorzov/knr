@@ -4,9 +4,10 @@
 #include <string.h>
 #include <fcntl.h>
 
+void filecopy(int fin, int fout);
+
 int main(int argc, char *argv[]) {
 	const char *help = "Usage: cat FILES\n";
-	char buf[BUFSIZ];
 	int f1, n;
 
 	if (argc < 2) {
@@ -17,27 +18,22 @@ int main(int argc, char *argv[]) {
 
 	while (*++argv) {
 		if ((f1=open(*argv, O_RDONLY, 0)) == -1) {
-			n = sprintf(buf, "ERROR: couldn't read %s\n", *argv);
-			write(2, buf, n);
+			fprintf(stderr, "ERROR: couldn't read %s\n", *argv);
 			exit(EXIT_FAILURE);
 		}
-
-		while ((n=read(f1, buf, BUFSIZ)) > 0) {
-			write(1, buf, n);
-		}
-		if (n == -1) {
-			n = sprintf(buf, "ERROR: couldn't read %s\n", *argv);
-			write(2, buf, n);
-			exit(EXIT_FAILURE);
-		}
-
-		if (close(f1) != 0) {
-			n = sprintf(buf, "ERROR: couldn't close %s\n", *argv);
-			write(2, buf, n);
-			exit(EXIT_FAILURE);
-		}
+		filecopy(f1, 1);
+		close(f1);
 	}
 
 
 	exit(EXIT_SUCCESS);
+}
+
+/* filecopy: copy file in to file out */
+void filecopy(int fin, int fout) {
+	static char buf[BUFSIZ];
+	int n;
+
+	while ((n=read(fin, buf, BUFSIZ)) > 0)
+		write(fout, buf, n);
 }

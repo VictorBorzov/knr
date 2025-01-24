@@ -65,8 +65,8 @@ int mgetline(char *line, int max) {
 
 /* filecopy: copy file in to file out */
 void filecopy(FILE *in, FILE *out) {
-	char c;
+	char buf[BUFSIZ];
 
-	while ((c=getc(in)) != EOF)
-		putc(c, out);
+	while (fgets(buf, BUFSIZ, in) != NULL)
+		fputs(buf, out);
 }
