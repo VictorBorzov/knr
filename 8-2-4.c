@@ -55,6 +55,9 @@ int _flushbuf(int, FILE *);
 FILE *fopen(char *name, char *mode);
 int fflush(FILE *);
 int fclose(FILE *);
+int fseek(FILE *, long, int);
+int fputs(char *, FILE *);
+char *fgets(char [], int, FILE *);
 
 void print_file(int, FILE *);
 void print_buffers(int);
@@ -75,7 +78,24 @@ int main(int argc, char *argv[]) {
 	}
 
 	if ((f1=fopen(argv[1], "r")) > 0) {
-		if ((f2=fopen(argv[2], "w")) > 0) {
+		if (fseek(f1, 4966, 0) == EOF) {
+			err("ERROR: Couldn't fseek ");
+			err(argv[1]);
+			err("\n");
+			exit(EXIT_FAILURE);
+		}
+		err("DEBUG: fseek successfully\n");
+		print_buffers(2);
+		if ((f2=fopen(argv[2], "a")) > 0) {
+			if (fseek(f2, 300, 0) == EOF) {
+				err("ERROR: Couldn't fseek ");
+				err(argv[2]);
+				err("\n");
+				exit(EXIT_FAILURE);
+			}
+			err("DEBUG: fseek successfully\n");
+			print_buffers(2);
+
 			while ((c=getc(f1)) != EOF)
 				putc(c, f2);
 		} else {
@@ -99,6 +119,30 @@ int main(int argc, char *argv[]) {
 	fclose(f2);
 	exit(EXIT_SUCCESS);
 }
+
+int fputs(char *s, FILE *f) {
+	int c;
+
+	while (c = *s++)
+		putc(c, f);
+	return ferror(f) ? EOF : 0;
+}
+
+char *fgets(char s[], int n, FILE *f) {
+	register int c;
+	register char *cs;
+
+	cs = s;
+	while (--n > 0 && (c=getc(f)) != EOF) {
+		if ((*cs++=c) == '\n') {
+			break;
+		}
+	}
+	*cs = '\0';
+
+	return (c == EOF && cs == s) ? NULL : s;
+}
+
 
 static char write_error_msg[] = "ERROR: write error";
 void write_string(int fd, char *s) {
@@ -154,7 +198,7 @@ void print_file(int fd, FILE *f) {
 	write_int(fd, f->cnt);
 	write_string(fd, ", ptr=");
 	if (f->ptr)
-		write_string(fd, "NOT_NULL");
+		write_int(fd, f->base - f->ptr);
 	else
 		write_string(fd, "NULL");
 	write_string(fd, ", base=");
@@ -215,7 +259,7 @@ FILE *fopen(char *name, char *mode) {
 			err("DEBUG: fopen: creating file\n");
 			fd = creat(name, PERMS);
 		}
-		err("DEBUG: fopen: lseek to 0\n");
+		err("DEBUG: fopen: lseek to the end of file\n");
 		lseek(fd, 0L, 2);
 	} else {
 		err("DEBUG: fopen: opening for read-only\n");
@@ -311,6 +355,8 @@ int _flushbuf(int c, FILE *fp) {
 		err("DEBUG: _flushbuf: buffer of size ");
 		write_int(2, fp->cnt);
 		err(" has been successfully allocated\n");
+		if (c == '\0')
+			return c;
 		n = write(fp->fd, &c, 1);
 		if (n == 1) {
 			err("DEBUG: _flushbuf: char ");
@@ -344,6 +390,7 @@ int _flushbuf(int c, FILE *fp) {
 			return EOF;
 		}
 		fp->cnt = bufsize;
+		fp->ptr = fp->base;
 		err("DEBUG: _flushbuf: buffer of size ");
 		write_int(2, bufsize);
 		err(" has been successfully written, _flushbuf: set cnt to ");
@@ -372,6 +419,10 @@ int _flushbuf(int c, FILE *fp) {
 
 /* fflush: returns 0 if success, otherwise EOF */
 int fflush(FILE *f) {
+	/* flush only files opened for write */
+	if (f->flags.can_read) {
+		return 0;
+	}
 	err("DEBUG: fflush: flushing ");
 	print_file(2, f);
 	err("\n");
@@ -402,7 +453,38 @@ int fclose(FILE *f) {
 	free(f->base);
 	free(f->name);
 	f->base = NULL;
+	f->ptr = NULL;
 	f->name = NULL;
 	err("DEBUG: fclose: success\n");
 	print_buffers(2);
+}
+
+int fseek(FILE *f, long offset, int whence) {
+	err("DEBUG: fseek: flushing ");
+	err(f->name ? f->name : "NULL");
+	err("\n");
+
+	if (!f->flags.can_read && !f->flags.can_write) { /* file is unavailble */
+		err("ERROR: fseek: file is unavailable\n");
+		return EOF;
+	}
+
+	if (f->flags.can_write && fflush(f) != 0) {
+		err("ERROR: fseek: couldn't flush write-only buffer\n");
+		return EOF;
+	} else if (f->flags.can_read && f->base != NULL) { /* clean buffer */
+		err("DEBUG: fseek: cleaning buffer\n");
+		f->cnt += f->base - f->ptr;
+		f->ptr = f->base;
+	}
+
+	if (lseek(f->fd, offset, whence) == EOF) {
+		err("ERROR: fseek: couldn't lseek\n");
+		return EOF;
+	}
+
+	f->flags.eof = 0;
+	err("DEBUG: fseek: success!\n");
+
+	return 0;
 }
